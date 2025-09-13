@@ -3,63 +3,52 @@ st.title('나의 첫 웹앱!')
 st.write('이걸 내가 만들었다고?!')
 
 import streamlit as st
-import time
+import pandas as pd
+import altair as alt
+import os
 
-st.set_page_config(page_title="MBTI 영어 공부 추천", page_icon="📚", layout="centered")
+# 앱 제목
+st.title("🌍 MBTI 유형별 국가 TOP10")
 
-# 🎨 스타일 효과
-st.markdown(
-    """
-    <style>
-    .big-font {
-        font-size:30px !important;
-        font-weight: bold;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
+# 데이터 불러오기
+@st.cache_data
+def load_data():
+    file_path = "countriesMBTI_16types.csv"
+    if os.path.exists(file_path):
+        df = pd.read_csv(file_path)
+    else:
+        uploaded_file = st.file_uploader("CSV 파일을 업로드하세요", type="csv")
+        if uploaded_file is not None:
+            df = pd.read_csv(uploaded_file)
+        else:
+            st.stop()
+    return df
+
+df = load_data()
+
+# MBTI 유형 목록
+mbti_types = df.columns[1:]  # 첫 번째 열은 Country, 나머지는 MBTI 유형
+
+# 사이드바에서 MBTI 유형 선택
+selected_type = st.sidebar.selectbox("MBTI 유형을 선택하세요:", mbti_types)
+
+# 선택된 MBTI 유형 TOP10 국가 추출
+top10 = df[["Country", selected_type]].sort_values(by=selected_type, ascending=False).head(10)
+
+# Altair 차트 생성
+chart = (
+    alt.Chart(top10)
+    .mark_bar()
+    .encode(
+        x=alt.X(selected_type, title=f"{selected_type} 비율"),
+        y=alt.Y("Country", sort='-x', title="국가"),
+        tooltip=["Country", selected_type]
+    )
+    .properties(width=600, height=400, title=f"{selected_type} 비율이 가장 높은 국가 TOP10")
+    .interactive()
 )
 
-# 🎉 제목
-st.title("✨ MBTI로 알아보는 영어 공부법 ✨")
-st.write("👉 자신의 **MBTI**를 선택하면, 딱 맞는 영어 공부법을 알려줄게요! 🥳")
+st.altair_chart(chart, use_container_width=True)
 
-# MBTI 목록
-mbti_types = [
-    "ENFP", "ENTP", "INFP", "INFJ", "ENFJ", "ENTJ",
-    "INTP", "INTJ", "ESFP", "ESTP", "ISFP", "ISTP",
-    "ESFJ", "ESTJ", "ISFJ", "ISTJ"
-]
-
-# 📌 사용자 입력
-choice = st.selectbox("MBTI를 골라보세요 🧩", mbti_types)
-
-# 추천 공부법 딕셔너리
-recommendations = {
-    "ENFP": "🎤 노래 따라 부르기 + 친구랑 롤플레잉! (재미있게 하면서 기억해요!)",
-    "ENTP": "🗣 토론식 영어! 친구랑 말싸움(?) 하듯이 연습해보세요 😆",
-    "INFP": "📖 영어 일기 쓰기 ✍️ → 감정을 담아서 쓰면 실력이 쑥쑥!",
-    "INFJ": "🌌 조용히 영어 소설 읽기 + 명언 필사 ✨",
-    "ENFJ": "👫 친구 가르치기! 영어 선생님이 되어보세요 🎓",
-    "ENTJ": "📊 계획표 세우고 영어 목표 달성하기! (게임처럼 레벨업 💪)",
-    "INTP": "🧩 퍼즐·퀴즈로 영어 단어 배우기! 두뇌 풀가동 🧠",
-    "INTJ": "📚 영어 공부 계획 + 꾸준한 독서 📖 (전략적으로!)",
-    "ESFP": "🎶 뮤직비디오 보면서 춤추며 영어 가사 외우기 💃",
-    "ESTP": "🎮 게임하면서 영어 배우기! (마이크 켜고 외국인 친구랑!)",
-    "ISFP": "🎨 그림 그리며 영어 단어 적기 ✏️ (감각적으로 배워요!)",
-    "ISTP": "🛠 만들기·실험하면서 영어 설명 따라하기 ⚡",
-    "ESFJ": "👯 그룹 스터디에서 친구랑 대화 연습하기 🗨️",
-    "ESTJ": "✅ 체크리스트 만들고 하루하루 달성하기! (성취감 업 🏆)",
-    "ISFJ": "💌 좋아하는 캐릭터에게 영어 편지 쓰기 📮",
-    "ISTJ": "📑 단어장 정리하고 매일 복습하기 📘 (꾸준함이 답!)",
-}
-
-# 버튼 누르면 결과 보여주기
-if st.button("🎁 나만의 영어 공부법 보기!"):
-    with st.spinner("두구두구... 🤔 최고의 방법을 찾고 있어요..."):
-        time.sleep(2)
-
-    st.success("짜잔! 🥳")
-    st.markdown(f"<p class='big-font'>{recommendations[choice]}</p>", unsafe_allow_html=True)
-
-    st.balloons()  # 🎈 풍선 효과
+# 데이터 테이블 표시
+st.dataframe(top10.reset_index(drop=True))
